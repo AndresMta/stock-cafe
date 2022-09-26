@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-iYQeCzEYFbKjA/T2uDLTpkwGzCiq6soy8tYaI1GyVh/UjpbCx/TYkiZhlZB6+fzT" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-u1OknCvxWvY5kfmNBILK2hRnQC3Pr17a+RTT6rIHI7NnikvbZlHgTPOOmMi466C8" crossorigin="anonymous"></script>
+    <script src="https://kit.fontawesome.com/675bb23e7a.js" crossorigin="anonymous"></script>
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="../js/main.js"></script>
+    <script src="../js/alerta.js"></script>
+    <link rel="stylesheet" href="../styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+    <title>Inicio</title>
+</head>
+<body>
+    <?php require_once "../auxiliares/navbar.php"; ?>
+    <div class="container-fluid py-3">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <p class="fs-3 fw-bold mb-0">Nuevo Pedido</p>
+        </div>
+
+        <div class="form-floating mb-3">
+            <select name="pedido_cliente" id="pedido_cliente" class="form-select" required>
+                <option></option>
+                <?php echo $selectClientes; ?>
+            </select>
+            <label for="pedido_cliente">Cliente:</label>
+        </div>
+        
+        <div class="form-floating mb-3">
+            <select class="form-select" name="pepido_producto_producto" id="pepido_producto_producto">
+                <option></option>
+                <?php echo $selectProductos; ?>
+            </select>
+            <label for="pepido_producto_producto">Producto:</label>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-9">
+                <div class="form-floating">
+                    <input class="form-control" type="number" name="pedido_producto_cantidad" id="pedido_producto_cantidad" placeholder="Cantidad">
+                    <label for="pedido_producto_cantidad">Cantidad:</label>
+                </div>
+            </div>
+    
+            <div class="col-3">
+                <button class="btn btn-success w-100 h-100" onclick="agregarProducto()">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>            
+        </div>
+
+        <div id="contenedorResumen" class="d-none mb-3">
+            <p class="fs-5 fw-bold">
+                Resumen Pedido:
+            </p>
+
+            <div id="resumen"></div>
+        </div>
+
+        <button class="btn btn-primary w-100" id="btnNuevoPedido" disabled onclick="enviarPedido()">
+            Enviar Pedido
+        </button>
+        <button class="btn btn-primary w-100 d-none" style="height: 38px;" id="loadingNuevoPedido" type="button" disabled>
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        </button>
+           
+    </div>
+</body>
+</html>
+
+<script>
+    const datosPedido = {
+        cliente: '',
+        productos: []
+    }    
+
+    function agregarProducto() {
+        const selectCliente  = document.getElementById('pedido_cliente');
+        const selectProducto = document.getElementById('pepido_producto_producto');
+        const selectCantidad = document.getElementById('pedido_producto_cantidad');
+
+        const { value:valueCliente } = document.getElementById('pedido_cliente');
+        const { value:valueProducto} = document.getElementById('pepido_producto_producto');
+        const { value:cantidad }     = document.getElementById('pedido_producto_cantidad');
+
+        selectCliente.classList.remove('border', 'border-danger')
+        selectProducto.classList.remove('border', 'border-danger')
+        selectCantidad.classList.remove('border', 'border-danger')
+
+
+        if(!valueCliente || valueCliente == '') {
+            selectCliente.classList.add('border', 'border-danger');
+            return
+        }
+
+        if(!valueProducto || valueProducto == '') {
+            selectProducto.classList.add('border', 'border-danger');
+            return;
+        }
+
+        if(!cantidad || cantidad == '' || cantidad <= 0) {
+            selectCantidad.classList.add('border', 'border-danger');
+            return;
+        }
+
+        const precio = document.querySelector(`#pepido_producto_producto [value='${valueProducto}']`).dataset.precio;
+        const nombre = document.querySelector(`#pepido_producto_producto [value='${valueProducto}']`).innerText;
+
+        datosPedido.cliente = valueCliente;
+        datosPedido.productos.push({
+            productoId: valueProducto,
+            productoNombre: nombre,
+            cantidad: cantidad,
+            precio: precio
+        }); 
+
+        selectProducto.value = '';
+        selectCantidad.value = '';
+        
+        if(datosPedido.productos.length > 0) {
+            document.getElementById('contenedorResumen').classList.remove('d-none');
+            document.getElementById('btnNuevoPedido').removeAttribute('disabled');
+        } else {
+            return
+        }
+
+        let resumenPedido = '';
+        let total = 0;
+        datosPedido.productos.map((p, i) => {
+            resumenPedido += `<p class='mb-0 d-flex justify-content-between'>
+                                <span>${p.productoNombre} x${p.cantidad}</span>
+                                <i class="fa-solid fa-trash-can text-danger" onclick="eliminarItemPedido(${i})"></i>
+                            </p>`
+                            
+            total += p.precio * p.cantidad;
+        });
+
+        document.getElementById('resumen').innerHTML = `${resumenPedido}<p class="fw-bold">Total: $${total}</p>`;
+        
+    }
+
+    
+    function eliminarItemPedido(index) {
+
+        datosPedido.productos = datosPedido.productos.filter((p, i) => i != index );
+
+        if(datosPedido.productos.length == 0) {
+            document.getElementById('contenedorResumen').classList.add('d-none');
+            document.getElementById('btnNuevoPedido').setAttribute('disabled', true);
+        }
+
+        let resumenPedido = '';
+        let total = 0;
+        datosPedido.productos.map((p, i) => {
+            resumenPedido += `<p class='mb-0 d-flex justify-content-between'>
+                                <span>${p.productoNombre} x${p.cantidad}</span>
+                                <i class="fa-solid fa-trash-can text-danger" onclick="eliminarItemPedido(${i})"></i>
+                            </p>`
+
+            total += p.precio * p.cantidad;
+        });
+
+        document.getElementById('resumen').innerHTML = `${resumenPedido}<p class="fw-bold">Total: $${total}</p>`;
+    }
+
+    
+    function enviarPedido() {
+        document.getElementById('btnNuevoPedido').classList.add('d-none');
+        document.getElementById('loadingNuevoPedido').classList.remove('d-none');
+
+        const { value:valueCliente } = document.getElementById('pedido_cliente');
+        datosPedido.cliente = valueCliente;
+        
+        $.ajax({
+            url: "/stock-cafe/pedidos/modelNuevoPedido.php",
+            method: 'POST',
+            data: {
+                datosPedido
+            },
+            success: function( result ) {
+                const data = JSON.parse(result); 
+                
+                if(!data.ok) {
+                    document.getElementById('btnNuevoPedido').classList.remove('d-none');
+                    document.getElementById('loadingNuevoPedido').classList.add('d-none'); 
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.msg,
+                    })
+                    return;
+                }
+
+                window.location.href = `/stock-cafe/pedidos/pedido.php?id=${data.id}`
+            }
+        });
+    
+    }
+</script>
